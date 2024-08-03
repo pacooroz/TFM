@@ -1,5 +1,6 @@
 from tkinter import *
 import subprocess
+from tkinter import font
 
 #etiqueta = Label(root, text="Este es el primer paso de mi TFM")
 #etiqueta.pack()
@@ -41,7 +42,7 @@ def create_window():
 
     # Crear el primer frame (primera columna con 3 filas)
     frame1 = Frame(root, bg="#f0f0f0")
-    frame1.grid(row=0, column=0, rowspan=4, padx=10, pady=10, sticky='ns')
+    frame1.grid(row=0, column=0, rowspan=8, padx=10, pady=10, sticky='ns')
     
     boton1 = Button(frame1, text="Listar usuarios", bg="#007bff", fg="#ffffff", command=listar_usuarios)
     boton1.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
@@ -57,6 +58,18 @@ def create_window():
     
     boton5 = Button(frame1, text="Obtener Máquinas Virtuales", bg="#007bff", fg="#ffffff", command=mostrar_maquinas_virtuales)
     boton5.grid(row=4, column=0, padx=5, pady=5, sticky='ew')
+    
+    boton6 = Button(frame1, text="Obtener USBs", bg="#007bff", fg="#ffffff", command=mostrar_usbs)
+    boton6.grid(row=5, column=0, padx=5, pady=5, sticky='ew')
+    
+    boton7 = Button(frame1, text="Obtener Redes", bg="#007bff", fg="#ffffff", command=mostrar_perfiles_wifi)
+    boton7.grid(row=6, column=0, padx=5, pady=5, sticky='ew')
+    
+    boton8 = Button(frame1, text="Obtener Listado Software", bg="#007bff", fg="#ffffff", command=mostrar_listado_software)
+    boton8.grid(row=7, column=0, padx=5, pady=5, sticky='ew')
+    
+    boton9 = Button(frame1, text="Papelera", bg="#007bff", fg="#ffffff", command=mostrar_informacion_papelera)
+    boton9.grid(row=8, column=0, padx=5, pady=5, sticky='ew')
     
     # Crear el frame con fondo de color alrededor del botón y el input
     frame_calculo_hashes = Frame(frame1, bg="#ffcccc", borderwidth=2, relief="groove")
@@ -347,5 +360,209 @@ def mostrar_maquinas_virtuales():
     # Desactivar el estado de solo lectura del widget
     resultado_text_widget.config(state=DISABLED)
     
+#######################################################################################
+
+def get_usb_devices():
+    usb_devices = []
+    reg_path = r"SYSTEM\CurrentControlSet\Enum\USBSTOR"
+    
+    try:
+        reg_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
+        
+        for i in range(winreg.QueryInfoKey(reg_key)[0]):
+            vendor_product_key = winreg.EnumKey(reg_key, i)
+            device_key_path = f"{reg_path}\\{vendor_product_key}"
+            device_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, device_key_path)
+            
+            for j in range(winreg.QueryInfoKey(device_key)[0]):
+                serial_key = winreg.EnumKey(device_key, j)
+                serial_key_path = f"{device_key_path}\\{serial_key}"
+                serial_key_opened = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, serial_key_path)
+                
+                device_info = {}
+                try:
+                    device_info['Vendor_Product'] = vendor_product_key
+                    device_info['Serial'] = serial_key
+                    device_info['FriendlyName'] = winreg.QueryValueEx(serial_key_opened, 'FriendlyName')[0]
+                except FileNotFoundError:
+                    device_info['FriendlyName'] = 'Unknown'
+
+                usb_devices.append(device_info)
+                
+                winreg.CloseKey(serial_key_opened)
+                
+            winreg.CloseKey(device_key)
+        
+        winreg.CloseKey(reg_key)
+    except WindowsError as e:
+        print(f"An error occurred accessing the registry: {e}")
+    
+    return usb_devices
+
+def mostrar_usbs():
+    # Obtiene la lista de dispositivos USB
+    salida = get_usb_devices()
+
+    # Limpiar el contenido actual del widget de texto
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+
+    # Verificar si la lista está vacía
+    if not salida:
+        salida_texto = "No se ha conectado ningún USB aún.\n"
+    else:
+        # Convertir la lista de diccionarios a una cadena de texto más estética
+        salida_texto = '-------\nSALIDA|\n-------\n'
+        for dispositivo in salida:
+            salida_texto += f"Dispositivo:\n"
+            salida_texto += f"  Vendor y Producto: {dispositivo['Vendor_Product']}\n"
+            salida_texto += f"  Serial: {dispositivo['Serial']}\n"
+            salida_texto += f"  Nombre Amigable: {dispositivo['FriendlyName']}\n"
+            salida_texto += "-"*80 + "\n"
+
+    # Insertar los resultados en el widget de texto
+    resultado_text_widget.insert('1.0', salida_texto)
+
+    # Desactivar el estado de solo lectura del widget
+    resultado_text_widget.config(state=DISABLED)
+    
+#######################################################################################
+
+def mostrar_perfiles_wifi():
+    # Ejecuta el comando y obtiene la salida
+    try:
+        resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
+    except subprocess.CalledProcessError as e:
+        resultado = f"Error al ejecutar el comando: {e}"
+        salida_formateada = f'-------\nSALIDA|\n-------\n{resultado}'
+        mostrar_resultado(salida_formateada)
+        return
+
+    # Procesar la salida para formatearla
+    lineas = resultado.splitlines()
+    perfiles = []
+    dentro_perfiles_usuario = False
+
+    for linea in lineas:
+        if "Perfiles de usuario" in linea:
+            dentro_perfiles_usuario = True
+            continue
+        if dentro_perfiles_usuario and "Perfil de todos los usuarios" in linea:
+            perfil = linea.split(':', 1)[-1].strip()
+            perfiles.append(perfil)
+
+    # Obtener detalles de cada perfil
+    salida_formateada = ''
+    for idx, perfil in enumerate(perfiles, start=1):
+        try:
+            # Obtener información detallada del perfil
+            detalle = subprocess.check_output(['netsh', 'wlan', 'show', 'profile', f'name={perfil}', 'key=clear'], text=True)
+        except subprocess.CalledProcessError as e:
+            detalle = f"Error al obtener detalles para {perfil}: {e}"
+        
+        # Añadir el perfil y su detalle a la salida
+        salida_formateada += f'\n=== Red WiFi {idx}: {perfil} ===\n'
+        salida_formateada += 'Detalles:\n'
+        salida_formateada += detalle
+
+    mostrar_resultado(salida_formateada)
+
+def mostrar_resultado(salida):
+    # Limpiar el contenido actual del widget de texto
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    
+    # Configurar estilos de fuente
+    fuente_encabezado = font.Font(resultado_text_widget, size=20, weight='bold')
+    fuente_detalles = font.Font(resultado_text_widget, size=10)
+
+    # Insertar el resultado en el widget de texto
+    linea = salida.splitlines()
+    for texto in linea:
+        if texto.startswith('=== Red WiFi'):
+            resultado_text_widget.insert(END, texto + '\n', ('encabezado',))
+        else:
+            resultado_text_widget.insert(END, texto + '\n', ('detalle',))
+
+    # Configurar tags para el formato
+    resultado_text_widget.tag_configure('encabezado', font=fuente_encabezado)
+    resultado_text_widget.tag_configure('detalle', font=fuente_detalles)
+    
+    # Desactivar el estado de solo lectura del widget
+    resultado_text_widget.config(state=DISABLED)
+
+#######################################################################################
+
+def mostrar_listado_software():
+    
+    comando = [
+        'powershell.exe',
+        '-Command',
+        "Get-Package | Where-Object { $_.ProviderName -ne 'msu' } | Select-Object Name, Version, ProviderName"
+    ]    
+    
+    resultado = subprocess.run(comando, shell=True, capture_output=True, text=True)
+    
+    salida = resultado.stdout.strip()
+    errores = resultado.stderr.strip()
+    
+    # Limpiar el contenido actual del widget de texto
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    
+    # Insertar la salida y los errores en el widget de texto
+    if salida:
+        resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n\n' + salida + '\n')
+        
+    if errores:
+        resultado_text_widget.insert('1.0', '--------\nERRORES|\n--------\n\n' + errores + '\n')
+    
+    resultado_text_widget.config(state=DISABLED)
+
+#######################################################################################
+
+import win32com.client
+
+def obtener_informacion_papelera():
+    shell = win32com.client.Dispatch("Shell.Application")
+    reciclaje = shell.Namespace("shell:::{645FF040-5081-101B-9F08-00AA002F954E}")
+    
+    if reciclaje is None:
+        print("No se pudo acceder a la Papelera de Reciclaje.")
+        return None
+    
+    items = reciclaje.Items()
+    resultados = []
+        
+    for item in items:
+        nombre = item.Name
+        tipo = item.Type
+        tamaño = item.ExtendedProperty('Size')
+        fecha_borrado = item.ExtendedProperty('DateDeleted')
+        
+        resultados.append(f"Nombre: {nombre}")
+        resultados.append(f"Tipo: {tipo}")
+        resultados.append(f"Tamaño: {tamaño} bytes")
+        resultados.append(f"Fecha de Eliminación: {fecha_borrado}")
+        resultados.append("-" * 40)
+    
+    return resultados
+                
+def mostrar_informacion_papelera():
+    resultado = obtener_informacion_papelera()
+    
+    # Limpiar el contenido actual del widget de texto
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    
+    if resultado:
+        # Insertar la salida en el widget de texto
+        resultado_text_widget.insert('1.0', '-----------\nINFORMACIÓN|\n-----------\n\n' + '\n'.join(resultado) + '\n')
+    else:
+        # Mensaje si no hay archivos en la papelera
+        resultado_text_widget.insert('1.0', 'No hay archivos en la papelera.\n')
+    
+    resultado_text_widget.config(state=DISABLED)
+        
 # Llamar a la función para crear la ventana principal
 create_window()
