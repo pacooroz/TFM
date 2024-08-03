@@ -563,6 +563,6 @@ def mostrar_informacion_papelera():
         resultado_text_widget.insert('1.0', 'No hay archivos en la papelera.\n')
     
     resultado_text_widget.config(state=DISABLED)
-        
+
 # Llamar a la función para crear la ventana principal
 create_window()
