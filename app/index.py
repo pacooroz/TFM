@@ -1,6 +1,7 @@
 from tkinter import *
 import subprocess
 from tkinter import font
+from PIL import ImageTk, Image
 
 #etiqueta = Label(root, text="Este es el primer paso de mi TFM")
 #etiqueta.pack()
@@ -31,68 +32,98 @@ def click_boton():
 boton1 = Button(root, text="No presiones el botón", bg="gray",command=click_boton)
 boton1.grid(row=1, column=0)
 '''
+root = Tk()
+root.title("INFORENSIC")
+root.configure(bg="#f0f0f0")  # Fondo de la ventana
+
+icono = PhotoImage(file="./app/static/icono.png")
+root.iconphoto(True, icono)
+
+# Establece el tamaño mínimo de la ventana
+root.minsize(width=1180, height=700)
 
 #######################################################################################
 def create_window():
     global resultado_text_widget, directorio_entry # Definir el widget de texto globalmente para actualizarlo en listar_usuarios()
 
-    root = Tk()
-    root.title("Informe Forense")
-    root.configure(bg="#f0f0f0")  # Fondo de la ventana
+    root.grid_rowconfigure(0, weight=1)
+    root.grid_rowconfigure(1, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+    root.grid_columnconfigure(1, weight=3)  # Hacer la segunda columna más amplia
 
     # Crear el primer frame (primera columna con 3 filas)
     frame1 = Frame(root, bg="#f0f0f0")
-    frame1.grid(row=0, column=0, rowspan=8, padx=10, pady=10, sticky='ns')
+    frame1.grid(row=0, column=0, rowspan=11, padx=10, pady=10, sticky='nsew')
+
+    for i in range(11):
+        frame1.grid_rowconfigure(i, weight=1)
+    frame1.grid_columnconfigure(0, weight=1)
+    
+    logo = PhotoImage(file="./app/static/logo.png")
+    logo_img = Label(frame1, image=logo)
+    logo_img.grid(row=0, column=0, sticky='nsew')
     
     boton1 = Button(frame1, text="Listar usuarios", bg="#007bff", fg="#ffffff", command=listar_usuarios)
-    boton1.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
+    boton1.grid(row=1, column=0, padx=5, pady=5, sticky='nsew')
     
     boton2 = Button(frame1, text="Particiones", bg="#007bff", fg="#ffffff", command=particiones)
-    boton2.grid(row=1, column=0, padx=5, pady=5, sticky='ew')
-    
-    boton3 = Button(frame1, text="Cálculo de Hashes", bg="#007bff", fg="#ffffff", command=calcular_hashes_gui)
-    boton3.grid(row=2, column=0, padx=5, pady=5, sticky='ew')
+    boton2.grid(row=3, column=0, padx=5, pady=5, sticky='nsew')
     
     boton4 = Button(frame1, text="Detalles S.O", bg="#007bff", fg="#ffffff", command=información_SO)
-    boton4.grid(row=3, column=0, padx=5, pady=5, sticky='ew')
+    boton4.grid(row=4, column=0, padx=5, pady=5, sticky='nsew')
     
     boton5 = Button(frame1, text="Obtener Máquinas Virtuales", bg="#007bff", fg="#ffffff", command=mostrar_maquinas_virtuales)
-    boton5.grid(row=4, column=0, padx=5, pady=5, sticky='ew')
+    boton5.grid(row=5, column=0, padx=5, pady=5, sticky='nsew')
     
     boton6 = Button(frame1, text="Obtener USBs", bg="#007bff", fg="#ffffff", command=mostrar_usbs)
-    boton6.grid(row=5, column=0, padx=5, pady=5, sticky='ew')
+    boton6.grid(row=6, column=0, padx=5, pady=5, sticky='nsew')
     
     boton7 = Button(frame1, text="Obtener Redes", bg="#007bff", fg="#ffffff", command=mostrar_perfiles_wifi)
-    boton7.grid(row=6, column=0, padx=5, pady=5, sticky='ew')
+    boton7.grid(row=7, column=0, padx=5, pady=5, sticky='nsew')
     
     boton8 = Button(frame1, text="Obtener Listado Software", bg="#007bff", fg="#ffffff", command=mostrar_listado_software)
-    boton8.grid(row=7, column=0, padx=5, pady=5, sticky='ew')
+    boton8.grid(row=8, column=0, padx=5, pady=5, sticky='nsew')
     
     boton9 = Button(frame1, text="Papelera", bg="#007bff", fg="#ffffff", command=mostrar_informacion_papelera)
-    boton9.grid(row=8, column=0, padx=5, pady=5, sticky='ew')
+    boton9.grid(row=9, column=0, padx=5, pady=5, sticky='nsew')
+    
+    boton10 = Button(frame1, text="Mostrar directorio", bg="#007bff", fg="#ffffff", command=iniciar_comando)
+    boton10.grid(row=10, column=0, padx=5, pady=5, sticky='nsew')
+    
+    boton11 = Button(frame1, text="Mostrar carpetas sincronizadas", bg="#007bff", fg="#ffffff", command=mostrar_carpetas_sincronizadas)
+    boton11.grid(row=11, column=0, padx=5, pady=5, sticky='nsew')
     
     # Crear el frame con fondo de color alrededor del botón y el input
     frame_calculo_hashes = Frame(frame1, bg="#ffcccc", borderwidth=2, relief="groove")
-    frame_calculo_hashes.grid(row=2, column=0, padx=5, pady=5, sticky='ew')
-
+    frame_calculo_hashes.grid(row=2, column=0, padx=5, pady=5, sticky='nsew')
+        
+    frame_calculo_hashes.grid_rowconfigure(0, weight=1)
+    frame_calculo_hashes.grid_rowconfigure(1, weight=1)
+    frame_calculo_hashes.grid_rowconfigure(2, weight=1)
+    frame_calculo_hashes.grid_columnconfigure(0, weight=1)
+    
     boton3 = Button(frame_calculo_hashes, text="Calcular Hashes", bg="#007bff", fg="#ffffff", command=calcular_hashes_gui)
-    boton3.grid(row=0, column=0, padx=5, pady=5, sticky='ew')
-
+    boton3.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+    
     directorio_label = Label(frame_calculo_hashes, text="Directorio:", bg="#e0e0e0")
-    directorio_label.grid(row=1, column=0, padx=5, pady=5, sticky='w')
+    directorio_label.grid(row=1, column=0, padx=5, pady=5, sticky='nsew')
 
     directorio_entry = Entry(frame_calculo_hashes, width=50)
-    directorio_entry.grid(row=2, column=0, padx=5, pady=5, sticky='ew')
+    directorio_entry.grid(row=2, column=0, padx=5, pady=5, sticky='nsew')
     
     # Crear el segundo frame (segunda columna con 1 fila)
     frame2 = Frame(root, bg="#ffffff")  # Opcional: Color de fondo para ver mejor el frame
-    frame2.grid(row=1, column=1, padx=10, pady=10, sticky='nsew')
+    frame2.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
     
-    resultado_text_widget = Text(frame2, wrap='word', height=30, width=100)
+    frame2.grid_rowconfigure(0, weight=1)
+    frame2.grid_columnconfigure(0, weight=1)
+    frame2.grid_columnconfigure(1, weight=0)
+    
+    resultado_text_widget = Text(frame2, wrap='word', height=40, width=100)
     resultado_text_widget.grid(row=0, column=0, sticky='nsew')
     
     scrollbar = Scrollbar(frame2, command=resultado_text_widget.yview)
-    scrollbar.grid(row=0, column=1, sticky='ns')
+    scrollbar.grid(row=0, column=1, sticky='nsew')
     resultado_text_widget.config(yscrollcommand=scrollbar.set)
     
     '''
@@ -564,5 +595,106 @@ def mostrar_informacion_papelera():
     
     resultado_text_widget.config(state=DISABLED)
 
+#######################################################################################
+
+import threading
+
+def obtener_unidades_disco():
+    # Obtiene una lista de todas las unidades de disco disponibles
+    unidades = []
+    result = subprocess.run(['wmic', 'logicaldisk', 'get', 'name'], capture_output=True, text=True)
+    if result.returncode == 0:
+        # Se divide la salida en líneas y se omite la primera línea (encabezado)
+        lineas = result.stdout.splitlines()
+        if len(lineas) > 1:
+            unidades = [line.strip() for line in lineas[1:] if line.strip()]
+    return unidades
+
+def limpiar_nombre_archivo(nombre):
+    # Reemplaza caracteres no válidos en nombres de archivo
+    return nombre.replace(":", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
+
+def actualizar_texto(texto):
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.insert(END, texto)
+    resultado_text_widget.config(state=DISABLED)
+
+def ejecutar_comando(unidad, archivo_salida):
+    # Mensaje de "Cargando..." con uso de after para la sincronización
+    def mostrar_mensaje_cargando():
+        actualizar_texto(f'Cargando el árbol de {unidad}...\n')
+
+    root.after(0, mostrar_mensaje_cargando)
+
+    # Ejecuta el comando para la unidad dada
+    comando = [
+        'powershell.exe',
+        '-Command',
+        f"tree /A {unidad}" + "\\" + f" > ./trees/{archivo_salida}"
+    ]
+    
+    resultado = subprocess.run(comando, shell=True, capture_output=True, text=True)
+    
+    # Actualiza el widget de texto con el resultado del comando
+    if resultado.returncode == 0:
+        resultado_texto = f'Diagrama generado en: /trees/{archivo_salida}\n'
+    else:
+        resultado_texto = f'Error al generar diagrama para {unidad}\n'
+    
+    root.after(0, lambda: actualizar_texto(resultado_texto))
+
+def iniciar_comando():
+    # Muestra el mensaje de aviso
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    resultado_text_widget.insert(END, "Por favor, espere a que se genere el diagrama de todas las unidades mostradas. Dependiendo del volumen de archivos, algunas pueden tardar más que otras.\n\n")
+    resultado_text_widget.insert(END, "NO SELECCIONE OTRO PROCESO HASTA QUE TERMINE ESTE\n\n")
+    resultado_text_widget.config(state=DISABLED)
+    
+    unidades = obtener_unidades_disco()
+    for unidad in unidades:
+        archivo_salida = f'directory_tree_{limpiar_nombre_archivo(unidad)}.txt'
+        threading.Thread(target=ejecutar_comando, args=(unidad, archivo_salida)).start()
+
+###############################################################################################3
+
+def get_onedrive_path():
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\OneDrive")
+        onedrive_path, _ = winreg.QueryValueEx(key, "UserFolder")
+        return onedrive_path
+    except FileNotFoundError:
+        return None
+
+def get_synced_folders(onedrive_path):
+    synced_folders = []
+    if onedrive_path:
+        for root, dirs, files in os.walk(onedrive_path):
+            for folder in dirs:
+                folder_path = os.path.join(root, folder)
+                synced_folders.append(folder_path)
+            #break  # No necesitamos recorrer subcarpetas recursivamente
+    return synced_folders
+
+def mostrar_carpetas_sincronizadas():
+
+    onedrive_path = get_onedrive_path()
+    
+    # Limpiar el contenido actual del widget de texto
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    
+    if onedrive_path:
+        # Insertar la salida en el widget de texto
+        resultado_text_widget.insert('1.0', f"OneDrive está sincronizado en: {onedrive_path}" + "\n\n")
+        synced_folders = get_synced_folders(onedrive_path)
+        resultado_text_widget.insert(END, "Carpetas sincronizadas con OneDrive: \n\n")
+        for folder in synced_folders:
+            resultado_text_widget.insert(END, "- " + folder + "\n")
+
+    else:
+        resultado_text_widget.insert(END, "OneDrive no está configurado en este equipo.")
+
+    
 # Llamar a la función para crear la ventana principal
 create_window()
