@@ -2,6 +2,7 @@ from tkinter import *
 import subprocess
 from tkinter import font
 from PIL import ImageTk, Image
+import informe_completo
 
 #etiqueta = Label(root, text="Este es el primer paso de mi TFM")
 #etiqueta.pack()
@@ -118,6 +119,9 @@ def create_window():
     frame2.grid_rowconfigure(0, weight=1)
     frame2.grid_columnconfigure(0, weight=1)
     frame2.grid_columnconfigure(1, weight=0)
+    
+    botonInforme = Button(root, text="Generar Informe Completo", bg="red", fg="white", command=generar_infome)
+    botonInforme.grid(row=1, column=1, padx=5, pady=5, sticky='nsew')
     
     resultado_text_widget = Text(frame2, wrap='word', height=40, width=100)
     resultado_text_widget.grid(row=0, column=0, sticky='nsew')
@@ -357,27 +361,32 @@ def obtener_maquinas_virtuales_virtualbox():
     except subprocess.CalledProcessError as e:
         return f"Error al obtener la lista de máquinas virtuales de VirtualBox: {e}"
 
-def obtener_maquinas_virtuales_vmware():
-    vmrun_path = r"C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe"
-    cmd = [vmrun_path, "list"]
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        vms = result.stdout.strip().split('\n')
-
-        if vms:
-            return "\n".join(vms)
-        else:
-            return "No se encontraron máquinas virtuales."
+def find_vmx_files():
     
-    except subprocess.CalledProcessError as e:
-        return f"Error al ejecutar el comando: {e}"
-
+    # Directorios comunes donde las máquinas virtuales suelen almacenarse
+    directories = [
+        os.path.join(os.path.expanduser("~"), "Documents", "Virtual Machines"),
+        os.path.join(os.path.expanduser("~"), "Documentos", "Virtual Machines"),
+        os.path.join(os.path.expanduser("~"), "OneDrive", "Documentos", "Virtual Machines"),
+        os.path.join(os.path.expanduser("~"), "OneDrive", "Documents", "Virtual Machines"),
+        "C:\\Users\\Public\\Documents\\Shared Virtual Machines\\"
+    ]
+    
+    vmx_files = []
+    for directory in directories:
+        for root, dirs, files in os.walk(directory):
+            for file in files:
+                if file.endswith(".vmx"):
+                    vmx_files.append(os.path.join(root, file))
+                    
+    return vmx_files
 
 def mostrar_maquinas_virtuales():
     # Obtiene la lista de máquinas virtuales de cada sistema
     salida_vbox = obtener_maquinas_virtuales_virtualbox()
-    salida_vmware = obtener_maquinas_virtuales_vmware()
+    salida_vmware = find_vmx_files()
+    print(salida_vmware)
+    salida_vmware_str = '\n'.join(salida_vmware)
 
     # Limpiar el contenido actual del widget de texto
     resultado_text_widget.config(state=NORMAL)
@@ -385,7 +394,12 @@ def mostrar_maquinas_virtuales():
 
     # Insertar los resultados en el widget de texto
     resultado_text_widget.insert('1.0', '\nVirtualBox:\n\n' + salida_vbox + '\n' + "-"*80)
-    resultado_text_widget.insert('1.0', '\nVMware:\n\n' + salida_vmware + '\n' + "-"*80)
+    
+    if salida_vmware == []:
+        resultado_text_widget.insert('1.0', '\nVMware:\n\n' + "No se ha encontrado máquinas VMWare." + '\n' + "-"*80)
+    else:
+        resultado_text_widget.insert('1.0', '\nVMware:\n\n' + salida_vmware_str + '\n' + "-"*80)
+        
     resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n')
 
     # Desactivar el estado de solo lectura del widget
@@ -695,6 +709,17 @@ def mostrar_carpetas_sincronizadas():
     else:
         resultado_text_widget.insert(END, "OneDrive no está configurado en este equipo.")
 
+################################################################################################3
+
+def generar_infome():
+    
+    # Generar los archivos HTML
+    informe_completo.listar_usuarios_html()
+    informe_completo.particiones_html()
+    informe_completo.información_SO()
+
+    # Generar el índice HTML
+    informe_completo.generar_indice_html()
     
 # Llamar a la función para crear la ventana principal
 create_window()
