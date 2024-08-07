@@ -1,3 +1,4 @@
+import queue
 from tkinter import *
 import subprocess
 from tkinter import font
@@ -628,7 +629,7 @@ def limpiar_nombre_archivo(nombre):
     # Reemplaza caracteres no válidos en nombres de archivo
     return nombre.replace(":", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
 
-def actualizar_texto(texto):
+def actualizar_textoTree(texto):
     resultado_text_widget.config(state=NORMAL)
     resultado_text_widget.insert(END, texto)
     resultado_text_widget.config(state=DISABLED)
@@ -636,7 +637,7 @@ def actualizar_texto(texto):
 def ejecutar_comando(unidad, archivo_salida):
     # Mensaje de "Cargando..." con uso de after para la sincronización
     def mostrar_mensaje_cargando():
-        actualizar_texto(f'Cargando el árbol de {unidad}...\n')
+        actualizar_textoTree(f'Cargando el árbol de {unidad}...\n')
 
     root.after(0, mostrar_mensaje_cargando)
 
@@ -655,7 +656,7 @@ def ejecutar_comando(unidad, archivo_salida):
     else:
         resultado_texto = f'Error al generar diagrama para {unidad}\n'
     
-    root.after(0, lambda: actualizar_texto(resultado_texto))
+    root.after(0, lambda: actualizar_textoTree(resultado_texto))
 
 def iniciar_comando():
     # Muestra el mensaje de aviso
@@ -669,6 +670,7 @@ def iniciar_comando():
     for unidad in unidades:
         archivo_salida = f'directory_tree_{limpiar_nombre_archivo(unidad)}.txt'
         threading.Thread(target=ejecutar_comando, args=(unidad, archivo_salida)).start()
+
 
 ###############################################################################################3
 
@@ -711,15 +713,79 @@ def mostrar_carpetas_sincronizadas():
 
 ################################################################################################3
 
+'''
 def generar_infome():
     
     # Generar los archivos HTML
     informe_completo.listar_usuarios_html()
     informe_completo.particiones_html()
     informe_completo.información_SO()
-
-    # Generar el índice HTML
+    informe_completo.mostrar_maquinas_virtuales()
     informe_completo.generar_indice_html()
+    informe_completo.mostrar_usbs()
+    informe_completo.mostrar_perfiles_wifi()
+    informe_completo.listado_software()
+    informe_completo.mostrar_informacion_papelera()
+    informe_completo.iniciar_comando()
+'''
+def actualizar_texto(linea, mensaje):
     
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete(f"{linea}.0", f"{linea}.end")
+    resultado_text_widget.insert(f"{linea}.0", mensaje)
+    resultado_text_widget.config(state=DISABLED)
+    resultado_text_widget.yview(END)  # Desplazar hacia abajo para mostrar el texto más reciente
+
+def mostrar_mensaje_y_ejecutar(linea, mensaje, funcion):
+    def wrapper():
+        # Ejecutar la función
+        funcion()
+        # Mostrar mensaje de finalización
+        root.after(0, lambda: actualizar_texto(linea, mensaje + " --> ¡Hecho!"))
+        # Ejecutar la siguiente tarea en la cola
+        if not tarea_queue.empty():
+            next_linea, next_mensaje, next_funcion = tarea_queue.get()
+            mostrar_mensaje_y_ejecutar(next_linea, next_mensaje, next_funcion)
+    
+    # Ejecutar en un hilo separado para mantener la interfaz de usuario responsiva
+    threading.Thread(target=wrapper).start()
+
+def generar_infome():
+    global tarea_queue
+    tarea_queue = queue.Queue()
+
+    resultado_text_widget.config(state=NORMAL)
+    resultado_text_widget.delete('1.0', END)
+    
+    # Añadir las tareas a la cola
+    tarea_queue.put(("1", "Generando Lista de Usuarios...", informe_completo.listar_usuarios_html))
+    tarea_queue.put(("2", "Generando Particiones...", informe_completo.particiones_html))
+    tarea_queue.put(("3", "Generando Información del SO...", informe_completo.información_SO))
+    tarea_queue.put(("4", "Mostrando Máquinas Virtuales...", informe_completo.mostrar_maquinas_virtuales))
+    tarea_queue.put(("5", "Mostrando Dispositivos USB...", informe_completo.mostrar_usbs))
+    tarea_queue.put(("6", "Mostrando Perfiles Wi-Fi...", informe_completo.mostrar_perfiles_wifi))
+    tarea_queue.put(("7", "Listado de Software...", informe_completo.listado_software))
+    tarea_queue.put(("8", "Mostrando Información de la Papelera...", informe_completo.mostrar_informacion_papelera))
+    tarea_queue.put(("9", "Mostrando Carpetas Sincronizadas con OneDrive...", informe_completo.mostrar_carpetas_sin))
+
+    # Obtener unidades de disco
+    unidades_disco = obtener_unidades_disco()
+    
+    # Añadir las tareas de árbol de directorios para cada unidad de disco
+    for i, unidad in enumerate(unidades_disco, start=10):
+        mensaje = f"Generando árbol de directorios de la unidad {unidad} en /trees/AutoReport/..."
+        tarea_queue.put((str(i), mensaje, lambda u=unidad: informe_completo.iniciar_comando(u)))
+    
+    # Insertar líneas en el widget de texto para cada tarea
+    resultado_text_widget.config(state=NORMAL)
+    for i in range(1, tarea_queue.qsize() + 1):
+        resultado_text_widget.insert(END, f"{i}.0 {tarea_queue.queue[i-1][1]}\n")
+    resultado_text_widget.config(state=DISABLED)
+    
+    # Ejecutar la primera tarea en la cola
+    if not tarea_queue.empty():
+        next_linea, next_mensaje, next_funcion = tarea_queue.get()
+        mostrar_mensaje_y_ejecutar(next_linea, next_mensaje, next_funcion)
+
 # Llamar a la función para crear la ventana principal
 create_window()
