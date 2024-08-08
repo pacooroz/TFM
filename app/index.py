@@ -1,9 +1,11 @@
 import queue
+import sys
 from tkinter import *
 import subprocess
 from tkinter import font
 from PIL import ImageTk, Image
 import informe_completo
+import os
 
 #etiqueta = Label(root, text="Este es el primer paso de mi TFM")
 #etiqueta.pack()
@@ -38,7 +40,20 @@ root = Tk()
 root.title("INFORENSIC")
 root.configure(bg="#f0f0f0")  # Fondo de la ventana
 
-icono = PhotoImage(file="./app/static/icono.png")
+def resource_path(relative_path):
+    """ Devuelve el path absoluto al recurso en la carpeta temporal si se está ejecutando como un .exe """
+    try:
+        # PyInstaller crea una carpeta temporal para los recursos
+        base_path = sys._MEIPASS
+    except Exception:
+        # Si no se está ejecutando desde un .exe, usa el directorio actual
+        base_path = os.path.dirname(".")
+        
+    return os.path.join(base_path, relative_path)
+
+icono_path = resource_path("icono.png")
+
+icono = PhotoImage(file=icono_path)
 root.iconphoto(True, icono)
 
 # Establece el tamaño mínimo de la ventana
@@ -60,8 +75,9 @@ def create_window():
     for i in range(11):
         frame1.grid_rowconfigure(i, weight=1)
     frame1.grid_columnconfigure(0, weight=1)
-    
-    logo = PhotoImage(file="./app/static/logo.png")
+
+    icono_path = resource_path("logo.png")
+    logo = PhotoImage(file=icono_path)
     logo_img = Label(frame1, image=logo)
     logo_img.grid(row=0, column=0, sticky='nsew')
     
@@ -325,7 +341,7 @@ def encontrar_vboxmanage_path():
         if os.path.isfile(ruta_archivo):
             return ruta_archivo
         else:
-            print(f"Archivo vboxmanage.exe no encontrado en {ruta_instalacion}")
+            print(f"VirtualBox no está instalado o el archivo vboxmanage.exe no ha sido encontrado en {ruta_instalacion}")
     return None
 
 def encontrar_vmrun_path():
@@ -568,6 +584,7 @@ def mostrar_listado_software():
 #######################################################################################
 
 import win32com.client
+import win32timezone
 
 def obtener_informacion_papelera():
     shell = win32com.client.Dispatch("Shell.Application")
@@ -615,19 +632,25 @@ def mostrar_informacion_papelera():
 import threading
 
 def obtener_unidades_disco():
-    # Obtiene una lista de todas las unidades de disco disponibles
     unidades = []
-    result = subprocess.run(['wmic', 'logicaldisk', 'get', 'name'], capture_output=True, text=True)
-    if result.returncode == 0:
-        # Se divide la salida en líneas y se omite la primera línea (encabezado)
+    try:
+        result = subprocess.run(['wmic', 'logicaldisk', 'get', 'name'], capture_output=True, text=True)
+        result.check_returncode()
         lineas = result.stdout.splitlines()
         if len(lineas) > 1:
             unidades = [line.strip() for line in lineas[1:] if line.strip()]
+    except subprocess.CalledProcessError as e:
+        print(f'Error al obtener unidades de disco: {e}')
+    except Exception as e:
+        print(f'Error inesperado: {e}')
     return unidades
 
 def limpiar_nombre_archivo(nombre):
-    # Reemplaza caracteres no válidos en nombres de archivo
     return nombre.replace(":", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
+
+def crear_directorio_si_no_existe(directorio):
+    if not os.path.exists(directorio):
+        os.makedirs(directorio)
 
 def actualizar_textoTree(texto):
     resultado_text_widget.config(state=NORMAL)
@@ -635,31 +658,52 @@ def actualizar_textoTree(texto):
     resultado_text_widget.config(state=DISABLED)
 
 def ejecutar_comando(unidad, archivo_salida):
-    # Mensaje de "Cargando..." con uso de after para la sincronización
     def mostrar_mensaje_cargando():
         actualizar_textoTree(f'Cargando el árbol de {unidad}...\n')
-
+    
     root.after(0, mostrar_mensaje_cargando)
-
-    # Ejecuta el comando para la unidad dada
-    comando = [
-        'powershell.exe',
-        '-Command',
-        f"tree /A {unidad}" + "\\" + f" > ./trees/{archivo_salida}"
-    ]
     
-    resultado = subprocess.run(comando, shell=True, capture_output=True, text=True)
-    
-    # Actualiza el widget de texto con el resultado del comando
-    if resultado.returncode == 0:
-        resultado_texto = f'Diagrama generado en: /trees/{archivo_salida}\n'
+    if getattr(sys, 'frozen', False):  # Si es un .exe compilado
+        directorio_base = os.path.dirname(sys.executable)
     else:
-        resultado_texto = f'Error al generar diagrama para {unidad}\n'
+        directorio_base = os.path.dirname(os.path.abspath(__file__))
     
+    archivo_salida_path = os.path.join(directorio_base, archivo_salida)
+
+    print(f"Directorio base: {directorio_base}")
+    print(f"Archivo de salida: {archivo_salida_path}")
+
+    comando = (
+        f'powershell.exe -Command "tree /A {unidad}\\ | Out-File -FilePath \'{archivo_salida_path}\' -Encoding UTF8"'
+    )
+
+    print(f"Comando a ejecutar: {comando}")
+    ruta_relativa = os.path.relpath(archivo_salida_path, start=directorio_base)
+
+    try:
+        resultado = subprocess.run(comando, shell=True, capture_output=True, text=True)
+        print(f"Resultado stdout: {resultado.stdout}")
+        print(f"Resultado stderr: {resultado.stderr}")
+        resultado.check_returncode()
+        if resultado.returncode == 0:
+            print(f"Archivo generado correctamente: {archivo_salida_path}")
+            resultado_texto = f'Diagrama generado en: /{ruta_relativa}\n'
+
+        else:
+            print(f"Error al generar archivo para {unidad}")
+            resultado_texto = f'Error al generar diagrama para {unidad}\n'
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error al ejecutar comando: {e}")
+        resultado_texto = f'Error al ejecutar comando para {unidad}: {e}\n'
+
+    except Exception as e:
+        print(f"Error inesperado: {e}")
+        resultado_texto = f'Error inesperado al ejecutar comando para {unidad}: {e}\n'
+
     root.after(0, lambda: actualizar_textoTree(resultado_texto))
 
 def iniciar_comando():
-    # Muestra el mensaje de aviso
     resultado_text_widget.config(state=NORMAL)
     resultado_text_widget.delete('1.0', END)
     resultado_text_widget.insert(END, "Por favor, espere a que se genere el diagrama de todas las unidades mostradas. Dependiendo del volumen de archivos, algunas pueden tardar más que otras.\n\n")
@@ -670,7 +714,6 @@ def iniciar_comando():
     for unidad in unidades:
         archivo_salida = f'directory_tree_{limpiar_nombre_archivo(unidad)}.txt'
         threading.Thread(target=ejecutar_comando, args=(unidad, archivo_salida)).start()
-
 
 ###############################################################################################3
 
@@ -758,6 +801,8 @@ def generar_infome():
     resultado_text_widget.delete('1.0', END)
     
     # Añadir las tareas a la cola
+    informe_completo.generar_indice_html()
+
     tarea_queue.put(("1", "Generando Lista de Usuarios...", informe_completo.listar_usuarios_html))
     tarea_queue.put(("2", "Generando Particiones...", informe_completo.particiones_html))
     tarea_queue.put(("3", "Generando Información del SO...", informe_completo.información_SO))

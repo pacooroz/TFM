@@ -194,8 +194,8 @@ def generar_indice_html():
             <li><a href="resultado_wifi.html">Listado de Redes</a></li>
             <li><a href="listado_software.html">Software Instalado</a></li>
             <li><a href="papelera.html">Información de la Papelera</a></li>
-            <li><a href="tree.html">Árbol de directorios</a></li>
-            <li><a href="carpetas_sincronizadas.html">Carpetas sincronizadas</a></li>
+            <li>Los árboles de directorios han sido cargados en la carpeta "trees/autoReport", a la misma altura que el ejecutable.</li>
+            <li><a href="carpetas_sincro.html">Carpetas sincronizadas</a></li>
         
         </ul>
     </body>
