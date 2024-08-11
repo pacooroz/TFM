@@ -231,59 +231,84 @@ def particiones():
 
 import os
 import hashlib
+import concurrent.futures
 
-def listar_archivos(directorio):       
-    lista_archivos = []
-    for raiz, directorios, archivos in os.walk(directorio):   #Dado un directorio, lo recorre de manera recursiva
-        for archivo in archivos:
-            ruta_completa = os.path.join(raiz, archivo)    #construimos una ruta completa a un archivo
-            lista_archivos.append((archivo, ruta_completa))    #Devolvemos una lista de tuplas de forma (nombreArchivo, ruta)
-    return lista_archivos
-
-def calcular_hash_archivo(ruta_archivo):
-    hash_md5 = hashlib.md5()           #Especificamos el tipo de hash que vamos a calcular
+# Función que calcula el hash de un archivo
+def calcular_hash_archivo(ruta_archivo, algoritmo='md5'):
+    hash_obj = hashlib.new(algoritmo)
     try:
-        with open(ruta_archivo, 'rb') as f:      #Abre el archivo especificado por ruta_archivo en modo de lectura binaria
-            while True:  #Iniciamos un bucle infinito que se utilizará para leer el archivo en bloques.
-                chunk = f.read(4096)          #Lee hasta 4096 bytes del archivo en cada iteración del bucle.
-                if not chunk:                 #Verificamos si chunk está vacío (es decir, si se ha llegado al final del archivo). Cuando f.read devuelve una cadena vacía, es que se ha leído todo el archivo.
+        with open(ruta_archivo, 'rb') as archivo:
+            while True:
+                bloque = archivo.read(4096)
+                if not bloque:
                     break
-                hash_md5.update(chunk)
-                
-    except IOError as e:
-        print(f"Error al abrir el archivo {ruta_archivo}: {e}")
+                hash_obj.update(bloque)
+        return hash_obj.hexdigest()
+    except (OSError, IOError) as e:
+        print(f'No se puede leer el archivo {ruta_archivo}: {e}')
         return None
-    return hash_md5.hexdigest()
 
-def hashes(directorio_input):
-    archivos = listar_archivos(directorio_input)         #Listamos los archivos del directorio especificado en el input
-    lista_hashes = []
-    for archivo, ruta in archivos:
-        hash_valor = calcular_hash_archivo(ruta)         #Calculamos el hash de cada archivo del directorio especificado en el input
-        lista_hashes.append((archivo, hash_valor))
-    return lista_hashes
+# Función que procesa un archivo
+def procesar_archivo(ruta_archivo):
+    hash_valor = calcular_hash_archivo(ruta_archivo)
+    if hash_valor:
+        return ruta_archivo, hash_valor
+    return None
+
+# Función que escanea un directorio y calcula los hashes de los archivos
+def escanear_directorio(directorio):
+    archivos = []
+    resultados = []
+
+    # Verificar si la entrada es un archivo
+    if os.path.isfile(directorio):
+        archivos.append(directorio)
+    else:
+        # Si es un directorio, recorrer el directorio
+        for carpeta_raiz, _, archivos_nombres in os.walk(directorio):
+            for archivo_nombre in archivos_nombres:
+                archivos.append(os.path.join(carpeta_raiz, archivo_nombre))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        for resultado in executor.map(procesar_archivo, archivos):
+            if resultado is not None:
+                resultados.append(resultado)
+
+    return resultados
 
 # Función para calcular los hashes y mostrar los resultados en el área de texto
 def calcular_hashes_gui():
-    directorio = directorio_entry.get()
-    if not os.path.isdir(directorio):
-        resultado_text_widget.config(state=NORMAL)
-        resultado_text_widget.delete('1.0', END)
-        resultado_text_widget.insert('1.0', 'Error: El directorio no existe o es inválido.\n')
-        resultado_text_widget.config(state=DISABLED)
-        return
-    
-    resultados_hashes = hashes(directorio)
-    
-    # Limpiar el contenido actual del widget de texto
+    # Mostrar "Cargando..." en el widget de texto y actualizar la GUI
     resultado_text_widget.config(state=NORMAL)
     resultado_text_widget.delete('1.0', END)
-    
-    # Insertar los resultados en el widget de texto
-    for archivo, hash_valor in resultados_hashes:
-        resultado_text_widget.insert('1.0', f"Archivo: {archivo}\nHash MD5: {hash_valor}\n{'-'*40}\n")
-    
+    resultado_text_widget.insert('1.0', 'Cargando...\n')
     resultado_text_widget.config(state=DISABLED)
+    resultado_text_widget.update_idletasks()
+
+    # Obtener el directorio o archivo de entrada
+    ruta = directorio_entry.get()
+
+    if not os.path.exists(ruta):
+        resultado_text_widget.config(state=NORMAL)
+        resultado_text_widget.delete('1.0', END)
+        resultado_text_widget.insert('1.0', 'Error: La ruta no existe o es inválida.\n')
+        resultado_text_widget.config(state=DISABLED)
+        return
+
+    # Función para calcular los hashes y actualizar la GUI con los resultados
+    def calcular_y_mostrar_resultados():
+        resultados_hashes = escanear_directorio(ruta)
+
+        resultado_text_widget.config(state=NORMAL)
+        resultado_text_widget.delete('1.0', END)
+
+        for archivo, hash_valor in resultados_hashes:
+            resultado_text_widget.insert('1.0', f"Archivo: {archivo}\nHash MD5: {hash_valor}\n{'-'*40}\n")
+
+        resultado_text_widget.config(state=DISABLED)
+
+    # Ejecutar la función en un hilo separado para no bloquear la GUI
+    threading.Thread(target=calcular_y_mostrar_resultados).start()
 
 
 #######################################################################################
@@ -491,6 +516,16 @@ def mostrar_usbs():
 #######################################################################################
 
 def mostrar_perfiles_wifi():
+    # Verifica si el servicio wlansvc está en ejecución
+    try:
+        servicio_estado = subprocess.check_output(['sc', 'query', 'wlansvc'], text=True)
+        if "RUNNING" not in servicio_estado:
+            mostrar_resultado("El servicio 'wlansvc' no está en ejecución. Es necesario que el servicio esté en ejecución para mostrar los perfiles Wi-Fi.")
+            return
+    except subprocess.CalledProcessError as e:
+        mostrar_resultado(f"Error al verificar el estado del servicio 'wlansvc': {e}")
+        return
+
     # Ejecuta el comando y obtiene la salida
     try:
         resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
@@ -526,13 +561,14 @@ def mostrar_perfiles_wifi():
         salida_formateada += f'\n=== Red WiFi {idx}: {perfil} ===\n'
         salida_formateada += 'Detalles:\n'
         salida_formateada += detalle
-
+        
     mostrar_resultado(salida_formateada)
 
 def mostrar_resultado(salida):
     # Limpiar el contenido actual del widget de texto
     resultado_text_widget.config(state=NORMAL)
     resultado_text_widget.delete('1.0', END)
+    resultado_text_widget.insert(END, 'Es necesario que el servicio Wlansvc esté en ejecución.\n\n')
     
     # Configurar estilos de fuente
     fuente_encabezado = font.Font(resultado_text_widget, size=20, weight='bold')
@@ -812,12 +848,13 @@ def generar_infome():
     tarea_queue.put(("7", "Listado de Software...", informe_completo.listado_software))
     tarea_queue.put(("8", "Mostrando Información de la Papelera...", informe_completo.mostrar_informacion_papelera))
     tarea_queue.put(("9", "Mostrando Carpetas Sincronizadas con OneDrive...", informe_completo.mostrar_carpetas_sin))
+    tarea_queue.put(("10", "Calculando Hashes...", informe_completo.generar_doc_hashes))
 
     # Obtener unidades de disco
     unidades_disco = obtener_unidades_disco()
     
     # Añadir las tareas de árbol de directorios para cada unidad de disco
-    for i, unidad in enumerate(unidades_disco, start=10):
+    for i, unidad in enumerate(unidades_disco, start=11):
         mensaje = f"Generando árbol de directorios de la unidad {unidad} en /trees/AutoReport/..."
         tarea_queue.put((str(i), mensaje, lambda u=unidad: informe_completo.iniciar_comando(u)))
     

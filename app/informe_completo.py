@@ -1,3 +1,6 @@
+from ctypes import windll
+from datetime import datetime
+from string import ascii_uppercase
 import pythoncom
 import subprocess
 import os
@@ -170,6 +173,8 @@ def información_SO():
 #######################################################################################
 
 def generar_indice_html():
+    unidades = obtener_unidades_disco()
+    
     # Generar el contenido HTML del índice
     html_content = '''
     <html>
@@ -196,7 +201,18 @@ def generar_indice_html():
             <li><a href="papelera.html">Información de la Papelera</a></li>
             <li>Los árboles de directorios han sido cargados en la carpeta "trees/autoReport", a la misma altura que el ejecutable.</li>
             <li><a href="carpetas_sincro.html">Carpetas sincronizadas</a></li>
+            <li>Por razones de rendimiento, los hashes han sido guardados en los archivos:
+    '''
+    for i, unidad in enumerate(unidades):
+        unidad = unidad.strip(":")
+        html_content += f"hashes_{unidad}.txt"
+        if i < len(unidades) - 1:
+            html_content += ", "
         
+    html_content +=  "</li>"
+        
+    
+    html_content += '''
         </ul>
     </body>
     </html>
@@ -266,7 +282,7 @@ def obtener_maquinas_virtuales_virtualbox():
     try:
         vboxmanage_path = encontrar_vboxmanage_path()
         if not vboxmanage_path:
-            return "vboxmanage.exe no se encontró en el sistema."
+            return "VirtualBox no se encontró en el sistema."
         resultado = subprocess.check_output([vboxmanage_path, 'list', 'vms']).decode('utf-8')
         return resultado.strip() if resultado.strip() else "No hay máquinas virtuales en VirtualBox."
     except subprocess.CalledProcessError as e:
@@ -775,3 +791,107 @@ def mostrar_carpetas_sin():
     onedrive_path = get_onedrive_path()
     synced_folders = get_synced_folders(onedrive_path)
     generar_html_contenido(onedrive_path, synced_folders)
+    
+#######################################################################################
+
+import os
+import hashlib
+import concurrent.futures
+import time
+import informe_completo  # Importa el módulo time para medir el tiempo
+
+def listar_archivos(directorio, extensiones_excluidas):
+    """
+    Lista todos los archivos en el directorio y subdirectorios, excluyendo ciertos tipos de archivos.
+
+    Args:
+        directorio (str): El directorio raíz desde donde empezar la búsqueda.
+        extensiones_excluidas (list): Lista de extensiones de archivos a excluir (por ejemplo, ['.tmp', '.bak']).
+
+    Returns:
+        list: Una lista de rutas completas de archivos.
+    """
+    if extensiones_excluidas is None:
+        extensiones_excluidas = ['.tmp', '.bak', '.swp', '.swo', '.dll', '.sys']
+
+    archivos = []
+
+    for root, dirs, files in os.walk(directorio):
+        print(f"Buscando en: {root}")  # Imprime el directorio actual que se está buscando
+        for file in files:
+            if not any(file.endswith(ext) for ext in extensiones_excluidas):
+                ruta_completa = os.path.join(root, file)
+                archivos.append(ruta_completa)
+
+    return archivos
+
+# Obtener unidades de disco
+unidades = informe_completo.obtener_unidades_disco()
+
+print("Unidades de disco:", unidades)  # Imprime las unidades que se obtienen
+
+def calcular_hash_archivo(ruta_archivo, algoritmo='md5'):
+    """
+    Calcula el hash de un archivo.
+
+    Args:
+        ruta_archivo (str): La ruta del archivo.
+        algoritmo (str): El algoritmo de hash a utilizar (por defecto 'md5').
+
+    Returns:
+        str: El hash del archivo en formato hexadecimal.
+    """
+    # Crea un objeto hash del tipo especificado
+    try:
+        # Crea un objeto hash del tipo especificado
+        hash_obj = hashlib.new(algoritmo)
+
+        # Lee el archivo en bloques para no cargarlo todo en memoria a la vez
+        with open(ruta_archivo, 'rb') as archivo:
+            while chunk := archivo.read(1048576):  # Leer en bloques de 1MB
+                hash_obj.update(chunk)
+
+        # Devuelve el hash en formato hexadecimal
+        return hash_obj.hexdigest()
+
+    except PermissionError as pe:
+        print(f"Permiso denegado para leer el archivo: {ruta_archivo}. Error: {pe}")
+        return None
+    except OSError as e:
+        if e.errno == 32:  # ERROR_SHARING_VIOLATION
+            print(f"El archivo está siendo utilizado por otro proceso: {ruta_archivo}")
+        else:
+            print(f"Error al acceder al archivo: {ruta_archivo}. Error: {e}")
+        return None
+
+extensiones_temporales = ['.tmp', '.bak', '.swp', '.swo', '.dll', '.sys']
+
+def generar_doc_hashes():
+    for unidad in unidades:
+        directorio = f'{unidad}\\'
+
+        # Listar archivos excluyendo temporales
+        archivos = listar_archivos(directorio, extensiones_excluidas=extensiones_temporales)
+        
+        print(f"Archivos encontrados en {directorio}: {archivos}")  # Imprime la lista de archivos encontrados
+
+        unidad_para_txt = unidad.strip(":")
+        # Guardar el listado en un archivo de texto
+        with open(f'listado_archivos_{unidad_para_txt}.txt', 'w', encoding='utf-8') as f:
+            for archivo in archivos:
+                f.write(f"{archivo}\n")
+
+        # Ahora calculamos y guardamos los hashes
+        with open(f'listado_archivos_{unidad_para_txt}.txt', 'r', encoding='utf-8') as archivo_listado:
+            with open(f'hashes_{unidad_para_txt}.txt', 'w', encoding='utf-8') as hash_file:
+                for linea in archivo_listado:
+                    # Elimina caracteres de nueva línea y espacios en blanco
+                    ruta_archivo = linea.strip()
+                    if os.path.isfile(ruta_archivo):  # Verifica si el archivo existe
+                        try:
+                            hash_value = calcular_hash_archivo(ruta_archivo, 'md5')
+                            hash_file.write(f"{ruta_archivo}: {hash_value}\n")
+                        except PermissionError as pe:
+                            print(f"Permiso denegado para leer el archivo: {ruta_archivo}: {pe}")
+                        except Exception as e:
+                            print(f"Error al calcular el hash para {ruta_archivo}: {e}")
