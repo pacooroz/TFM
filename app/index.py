@@ -520,20 +520,26 @@ def mostrar_perfiles_wifi():
     try:
         servicio_estado = subprocess.check_output(['sc', 'query', 'wlansvc'], text=True)
         if "RUNNING" not in servicio_estado:
-            mostrar_resultado("El servicio 'wlansvc' no está en ejecución. Es necesario que el servicio esté en ejecución para mostrar los perfiles Wi-Fi.")
-            return
+            mostrar_resultado("El servicio 'wlansvc' no está en ejecución.")
+            return None
+        else:
+            try:
+                resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
+                if "Perfil de todos los usuarios" not in resultado or "No hay ninguna interfaz inalámbrica en el sistema." in resultado:
+                    resultado = "No se ha conectado a ninguna red WiFi aún."
+                    mostrar_resultado(resultado)
+                    return
+            except subprocess.CalledProcessError as e:
+                resultado = f"Error al ejecutar el comando: {e}"
+                salida_formateada = f'-------\nSALIDA|\n-------\n{resultado}'
+                mostrar_resultado(salida_formateada)
+                return
+
     except subprocess.CalledProcessError as e:
         mostrar_resultado(f"Error al verificar el estado del servicio 'wlansvc': {e}")
-        return
+        return None
 
     # Ejecuta el comando y obtiene la salida
-    try:
-        resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
-    except subprocess.CalledProcessError as e:
-        resultado = f"Error al ejecutar el comando: {e}"
-        salida_formateada = f'-------\nSALIDA|\n-------\n{resultado}'
-        mostrar_resultado(salida_formateada)
-        return
 
     # Procesar la salida para formatearla
     lineas = resultado.splitlines()
@@ -579,6 +585,10 @@ def mostrar_resultado(salida):
     for texto in linea:
         if texto.startswith('=== Red WiFi'):
             resultado_text_widget.insert(END, texto + '\n', ('encabezado',))
+        elif texto.startswith("El servicio 'wlansvc' no está en ejecución."):
+            resultado_text_widget.insert(END, texto + '\n')
+        elif texto.startswith("No se ha conectado a ninguna red WiFi aún."):
+            resultado_text_widget.insert(END, texto + '\n')
         else:
             resultado_text_widget.insert(END, texto + '\n', ('detalle',))
 

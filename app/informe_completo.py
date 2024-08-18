@@ -431,12 +431,26 @@ import subprocess
 def mostrar_perfiles_wifi():
     # Ejecuta el comando y obtiene la salida
     try:
-        resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
+        servicio_estado = subprocess.check_output(['sc', 'query', 'wlansvc'], text=True)
+        if "RUNNING" not in servicio_estado:
+            guardar_resultado_html("El servicio 'wlansvc' no está en ejecución.")
+            return None
+        else:
+            try:
+                resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
+                if "Perfiles de usuario" in resultado and "Perfil de todos los usuarios" not in resultado:
+                    resultado = "No se ha conectado a ninguna red WiFi aún."
+                    guardar_resultado_html(resultado)
+                    return
+            except subprocess.CalledProcessError as e:
+                resultado = f"Error al ejecutar el comando: {e}"
+                salida_formateada = f'-------\nSALIDA|\n-------\n{resultado}'
+                guardar_resultado_html(salida_formateada)
+                return
+
     except subprocess.CalledProcessError as e:
-        resultado = f"Error al ejecutar el comando: {e}"
-        salida_formateada = f'-------<br>SALIDA|<br>-------<br>{resultado}'
-        guardar_resultado_html(salida_formateada)
-        return
+        guardar_resultado_html(f"Error al verificar el estado del servicio 'wlansvc': {e}")
+        return None
 
     # Procesar la salida para formatearla
     lineas = resultado.splitlines()
@@ -645,13 +659,16 @@ def mostrar_informacion_papelera():
             <tbody>
     '''
     
-    for item in resultados:
-        html_content += '<tr>'
-        html_content += f'<td>{item.get("Nombre", "Desconocido")}</td>'
-        html_content += f'<td>{item.get("Tipo", "Desconocido")}</td>'
-        html_content += f'<td>{item.get("Tamaño", "Desconocido")}</td>'
-        html_content += f'<td>{item.get("Fecha de Eliminación", "Desconocida")}</td>'
-        html_content += '</tr>'
+    if len(resultados) == 0:
+        html_content += "<p> No hay elementos en la papelera. </p>"
+    else:
+        for item in resultados:
+            html_content += '<tr>'
+            html_content += f'<td>{item.get("Nombre", "Desconocido")}</td>'
+            html_content += f'<td>{item.get("Tipo", "Desconocido")}</td>'
+            html_content += f'<td>{item.get("Tamaño", "Desconocido")}</td>'
+            html_content += f'<td>{item.get("Fecha de Eliminación", "Desconocida")}</td>'
+            html_content += '</tr>'
     
     html_content += '''
             </tbody>
@@ -860,6 +877,8 @@ def calcular_hash_archivo(ruta_archivo, algoritmo='md5'):
     except OSError as e:
         if e.errno == 32:  # ERROR_SHARING_VIOLATION
             print(f"El archivo está siendo utilizado por otro proceso: {ruta_archivo}")
+        elif (e.errno == 22):
+            print(f"No se puede acceder a dicho archivo ya que es de permisos reservados del sistema {ruta_archivo}")
         else:
             print(f"Error al acceder al archivo: {ruta_archivo}. Error: {e}")
         return None
@@ -895,3 +914,9 @@ def generar_doc_hashes():
                             print(f"Permiso denegado para leer el archivo: {ruta_archivo}: {pe}")
                         except Exception as e:
                             print(f"Error al calcular el hash para {ruta_archivo}: {e}")
+                            
+                        '''
+                        hash_value = calcular_hash_archivo(ruta_archivo, 'md5')
+                        if hash_value:  # Solo escribe si el hash no está vacío
+                            hash_file.write(f"{ruta_archivo}: {hash_value}\n")
+                        '''
