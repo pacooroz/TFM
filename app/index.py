@@ -456,7 +456,8 @@ def get_usb_devices():
     try:
         reg_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, reg_path)
         
-        for i in range(winreg.QueryInfoKey(reg_key)[0]):
+        for i in range(winreg.QueryInfoKey(reg_key)[0]):   #(number_of_subkeys, number_of_values, last_modified_timestamp)
+
             vendor_product_key = winreg.EnumKey(reg_key, i)
             device_key_path = f"{reg_path}\\{vendor_product_key}"
             device_key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, device_key_path)
@@ -482,7 +483,7 @@ def get_usb_devices():
         
         winreg.CloseKey(reg_key)
     except WindowsError as e:
-        print(f"An error occurred accessing the registry: {e}")
+        print(f"Ha ocurrido un error accediendo al registro: {e}")
     
     return usb_devices
 
@@ -693,10 +694,6 @@ def obtener_unidades_disco():
 
 def limpiar_nombre_archivo(nombre):
     return nombre.replace(":", "").replace("\\", "_").replace("/", "_").replace(" ", "_")
-
-def crear_directorio_si_no_existe(directorio):
-    if not os.path.exists(directorio):
-        os.makedirs(directorio)
 
 def actualizar_textoTree(texto):
     resultado_text_widget.config(state=NORMAL)
