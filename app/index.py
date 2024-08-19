@@ -179,10 +179,10 @@ def listar_usuarios():
     
     # Insertar la salida y los errores en el widget de texto
     if salida:
-        resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n\n' + salida + '\n')
+        resultado_text_widget.insert('1.0', 'USUARIOS:\n\n' + salida + '\n')
         
     if errores:
-        resultado_text_widget.insert('1.0', '--------\nERRORES|\n--------\n\n' + errores + '\n')
+        resultado_text_widget.insert('1.0', errores + '\n')
     
     resultado_text_widget.config(state=DISABLED)
 
@@ -224,7 +224,7 @@ def particiones():
     resultado_text_widget.delete('1.0', END)
     
     # Insertar el texto en el widget de texto
-    resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n\n----------------------------------------\n' + texto_resultados)
+    resultado_text_widget.insert('1.0', 'PARTICIONES:\n\n----------------------------------------\n' + texto_resultados)
     resultado_text_widget.config(state=DISABLED)
     
 #######################################################################################
@@ -327,10 +327,10 @@ def información_SO():
     
     # Insertar la salida y los errores en el widget de texto
     if salida:
-        resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n\n' + salida + '\n')
+        resultado_text_widget.insert('1.0', 'INFORMACIÓN:\n\n' + salida + '\n')
         
     if errores:
-        resultado_text_widget.insert('1.0', '--------\nERRORES|\n--------\n\n' + errores + '\n')
+        resultado_text_widget.insert('1.0', 'ERRORES:\n\n' + errores + '\n')
     
     resultado_text_widget.config(state=DISABLED)
 
@@ -442,7 +442,7 @@ def mostrar_maquinas_virtuales():
     else:
         resultado_text_widget.insert('1.0', '\nVMware:\n\n' + salida_vmware_str + '\n' + "-"*80)
         
-    resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n')
+    resultado_text_widget.insert('1.0', 'MÁQUINAS VIRTUALES:\n\n')
 
     # Desactivar el estado de solo lectura del widget
     resultado_text_widget.config(state=DISABLED)
@@ -500,7 +500,7 @@ def mostrar_usbs():
         salida_texto = "No se ha conectado ningún USB aún.\n"
     else:
         # Convertir la lista de diccionarios a una cadena de texto más estética
-        salida_texto = '-------\nSALIDA|\n-------\n'
+        salida_texto = 'DISPOSITIVOS USBs:\n\n'
         for dispositivo in salida:
             salida_texto += f"Dispositivo:\n"
             salida_texto += f"  Vendor y Producto: {dispositivo['Vendor_Product']}\n"
@@ -621,10 +621,10 @@ def mostrar_listado_software():
     
     # Insertar la salida y los errores en el widget de texto
     if salida:
-        resultado_text_widget.insert('1.0', '-------\nSALIDA|\n-------\n\n' + salida + '\n')
+        resultado_text_widget.insert('1.0', 'LISTADO SOFTWARE:\n\n' + salida + '\n')
         
     if errores:
-        resultado_text_widget.insert('1.0', '--------\nERRORES|\n--------\n\n' + errores + '\n')
+        resultado_text_widget.insert('1.0', 'ERRORES\n\n' + errores + '\n')
     
     resultado_text_widget.config(state=DISABLED)
 
@@ -667,7 +667,7 @@ def mostrar_informacion_papelera():
     
     if resultado:
         # Insertar la salida en el widget de texto
-        resultado_text_widget.insert('1.0', '-----------\nINFORMACIÓN|\n-----------\n\n' + '\n'.join(resultado) + '\n')
+        resultado_text_widget.insert('1.0', 'INFORMACIÓN SOBRE PAPELERA:\n\n' + '\n'.join(resultado) + '\n')
     else:
         # Mensaje si no hay archivos en la papelera
         resultado_text_widget.insert('1.0', 'No hay archivos en la papelera.\n')
