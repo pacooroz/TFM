@@ -105,12 +105,22 @@ def particiones_html():
         <!-- Enlace al CSS de Bootstrap -->
         <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
         <style>
+            /* Estilos adicionales específicos */
+            pre {{
+                font-family: "Courier New", monospace;
+                white-space: pre-wrap; /* Mantiene los saltos de línea y espacios en blanco */
+                word-wrap: break-word; /* Permite que el texto se ajuste en líneas más cortas */
+                padding: 1em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: #f8f9fa; /* Color de fondo suave */
+            }}
             h1 {{font-family: "Courier New", monospace; }}
         </style>
     </head>
     <body>
     <h1>PARTICIONES</h1>
-    {texto_resultados}
+    <pre>{texto_resultados}</pre>
     </body>
     </html>'''
     
@@ -438,10 +448,9 @@ def mostrar_perfiles_wifi():
         else:
             try:
                 resultado = subprocess.check_output(['netsh', 'wlan', 'show', 'profiles'], text=True)
-                if "Perfiles de usuario" in resultado and "Perfil de todos los usuarios" not in resultado:
+                if "Perfil de todos los usuarios" not in resultado or "No hay ninguna interfaz inalámbrica en el sistema." in resultado:
                     resultado = "No se ha conectado a ninguna red WiFi aún."
-                    guardar_resultado_html(resultado)
-                    return
+                    perfiles = None
             except subprocess.CalledProcessError as e:
                 resultado = f"Error al ejecutar el comando: {e}"
                 salida_formateada = f'-------\nSALIDA|\n-------\n{resultado}'
@@ -482,19 +491,22 @@ def mostrar_perfiles_wifi():
     <h1>HISTORIAL DE REDES</h1>
     '''
 
-    # Añadir detalles de cada perfil
-    for idx, perfil in enumerate(perfiles, start=1):
-        try:
-            # Obtener información detallada del perfil
-            detalle = subprocess.check_output(['netsh', 'wlan', 'show', 'profile', f'name={perfil}', 'key=clear'], text=True)
-        except subprocess.CalledProcessError as e:
-            detalle = f"Error al obtener detalles para {perfil}: {e}"
+    # Añadir perfiles y si no hay, muestro mensaje
+    if perfiles:
+        for idx, perfil in enumerate(perfiles, start=1):
+            try:
+                # Obtener información detallada del perfil
+                detalle = subprocess.check_output(['netsh', 'wlan', 'show', 'profile', f'name={perfil}', 'key=clear'], text=True)
+            except subprocess.CalledProcessError as e:
+                detalle = f"Error al obtener detalles para {perfil}: {e}"
 
-        # Añadir el perfil y su detalle a la salida
-        salida_formateada += f'<p class="encabezado">=== Red WiFi {idx}: {perfil} ===</p>'
-        salida_formateada += '<pre class="detalle">'
-        salida_formateada += detalle
-        salida_formateada += '</pre>'
+            # Añadir el perfil y su detalle a la salida
+            salida_formateada += f'<p class="encabezado">=== Red WiFi {idx}: {perfil} ===</p>'
+            salida_formateada += '<pre class="detalle">'
+            salida_formateada += detalle
+            salida_formateada += '</pre>'
+    else:
+        salida_formateada += '<p>No se ha conectado a ninguna red WiFi aún.</p>'        
 
     # Cerrar HTML
     salida_formateada += '</body></html>'
