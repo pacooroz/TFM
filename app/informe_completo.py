@@ -439,11 +439,30 @@ def mostrar_usbs():
 import subprocess
 
 def mostrar_perfiles_wifi():
+    
+    # Crear HTML base
+    salida_formateada = '''
+    <html>
+    <head>
+        <title>Historial de Redes</title>
+        <style>
+            pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow: auto; }
+            body { font-family: Courier New, monospace; }
+            .encabezado { font-size: 20px; font-weight: bold; }
+            .detalle { font-size: 12px; font-family: Courier New, monospace; }
+        </style>
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body>
+    <h1>HISTORIAL DE REDES</h1>
+    '''
+    
     # Ejecuta el comando y obtiene la salida
     try:
         servicio_estado = subprocess.check_output(['sc', 'query', 'wlansvc'], text=True)
         if "RUNNING" not in servicio_estado:
-            guardar_resultado_html("El servicio 'wlansvc' no está en ejecución.")
+            salida_formateada += "<pre>El servicio 'wlansvc' no está en ejecución.</pre>"
+            guardar_resultado_html(salida_formateada + '</body></html>')
             return None
         else:
             try:
@@ -473,23 +492,6 @@ def mostrar_perfiles_wifi():
         if dentro_perfiles_usuario and "Perfil de todos los usuarios" in linea:
             perfil = linea.split(':', 1)[-1].strip()
             perfiles.append(perfil)
-
-    # Crear HTML base
-    salida_formateada = '''
-    <html>
-    <head>
-        <title>Historial de Redes</title>
-        <style>
-            pre { background-color: #f4f4f4; padding: 10px; border: 1px solid #ddd; overflow: auto; }
-            body { font-family: Courier New, monospace; }
-            .encabezado { font-size: 20px; font-weight: bold; }
-            .detalle { font-size: 12px; font-family: Courier New, monospace; }
-        </style>
-        <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    </head>
-    <body>
-    <h1>HISTORIAL DE REDES</h1>
-    '''
 
     # Añadir perfiles y si no hay, muestro mensaje
     if perfiles:

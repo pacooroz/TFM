@@ -796,6 +796,8 @@ def mostrar_carpetas_sincronizadas():
 
     else:
         resultado_text_widget.insert(END, "OneDrive no está configurado en este equipo.")
+    
+    resultado_text_widget.config(state=DISABLED)
 
 ################################################################################################3
 
